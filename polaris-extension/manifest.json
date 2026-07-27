@@ -1,0 +1,51 @@
+{
+  "manifest_version": 3,
+  "name": "Polaris - AI Learning Guidance Assistant",
+  "version": "2.0.0",
+  "description": "Automatic learning activity & focus session tracking for Polaris Guidance Platform",
+  "permissions": [
+    "storage",
+    "activeTab",
+    "scripting",
+    "tabs",
+    "idle",
+    "alarms"
+  ],
+  "host_permissions": [
+    "http://*/*",
+    "https://*/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.youtube.com/*",
+        "https://*.geeksforgeeks.org/*",
+        "https://*.leetcode.com/*",
+        "https://*.developer.mozilla.org/*",
+        "https://*.oracle.com/*",
+        "https://*.docs.oracle.com/*",
+        "https://*.spring.io/*",
+        "https://*.docs.spring.io/*",
+        "https://*.w3schools.com/*",
+        "https://*.github.com/*",
+        "https://*.stackoverflow.com/*",
+        "https://*.dev.to/*",
+        "https://*.medium.com/*",
+        "http://localhost:5173/*"
+      ],
+      "js": ["domains.js", "telemetry.js"]
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Polaris Focus Assistant"
+  },
+  "externally_connectable": {
+    "matches": [
+      "http://localhost:5173/*"
+    ]
+  }
+}

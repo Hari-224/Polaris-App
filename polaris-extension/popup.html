@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Polaris Assistant</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    body {
+      width: 340px;
+      background-color: #030712;
+      color: #f3f4f6;
+      padding: 16px;
+    }
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #1f2937;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .logo {
+      width: 28px;
+      height: 28px;
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 15px;
+      color: #030712;
+      box-shadow: 0 0 12px rgba(14, 165, 233, 0.4);
+    }
+    .brand-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.01em;
+    }
+    .badge {
+      font-size: 10px;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 9999px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .badge-tracking {
+      background-color: rgba(16, 185, 129, 0.15);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.3);
+    }
+    .badge-paused {
+      background-color: rgba(245, 158, 11, 0.15);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    .badge-idle {
+      background-color: rgba(107, 114, 128, 0.15);
+      color: #9ca3af;
+      border: 1px solid rgba(107, 114, 128, 0.3);
+    }
+    .badge-offline {
+      background-color: rgba(239, 68, 68, 0.15);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+    .dot-green { background-color: #34d399; box-shadow: 0 0 6px #34d399; }
+    .dot-yellow { background-color: #fbbf24; }
+    .dot-gray { background-color: #9ca3af; }
+    .dot-red { background-color: #f87171; }
+
+    .card {
+      background-color: #111827;
+      border: 1px solid #1f2937;
+      border-radius: 14px;
+      padding: 12px 14px;
+      margin-bottom: 10px;
+    }
+    .card-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-value {
+      font-size: 13px;
+      font-weight: 600;
+      color: #f3f4f6;
+      word-break: break-word;
+    }
+    .card-subtext {
+      font-size: 11px;
+      color: #9ca3af;
+      margin-top: 2px;
+    }
+    .user-profile {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .user-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+    }
+    .user-role {
+      font-size: 10px;
+      background-color: rgba(14, 165, 233, 0.15);
+      color: #38bdf8;
+      border: 1px solid rgba(14, 165, 233, 0.3);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .btn {
+      width: 100%;
+      padding: 10px;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+    .btn-primary {
+      background-color: #0ea5e9;
+      color: #030712;
+      box-shadow: 0 4px 12px rgba(14, 165, 233, 0.25);
+    }
+    .btn-primary:hover {
+      background-color: #38bdf8;
+    }
+    .btn-stop {
+      background-color: rgba(239, 68, 68, 0.12);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    .btn-stop:hover {
+      background-color: rgba(239, 68, 68, 0.22);
+    }
+    .btn-secondary {
+      background-color: #1f2937;
+      color: #d1d5db;
+      border: 1px solid #374151;
+    }
+    .btn-secondary:hover {
+      background-color: #374151;
+      color: #ffffff;
+    }
+    .privacy-banner {
+      font-size: 10px;
+      color: #6b7280;
+      text-align: center;
+      line-height: 1.4;
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid #1f2937;
+    }
+    .banner-offline {
+      background-color: rgba(239, 68, 68, 0.1);
+      border: 1px solid rgba(239, 68, 68, 0.2);
+      color: #f87171;
+      font-size: 11px;
+      padding: 8px;
+      border-radius: 8px;
+      margin-bottom: 10px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <div class="brand">
+      <div class="logo">P</div>
+      <div class="brand-title">Polaris</div>
+    </div>
+    <div id="trackingBadge" class="badge badge-idle">
+      <span id="badgeDot" class="dot dot-gray"></span>
+      <span id="badgeText">Idle</span>
+    </div>
+  </div>
+
+  <div id="offlineBanner" class="banner-offline" style="display: none;">
+    Backend unreachable. Verify server on port 8081.
+  </div>
+
+  <!-- AUTH STATE: UNCONNECTED -->
+  <div id="unauthView" style="display: none;" class="card" style="text-align: center; padding: 20px 14px;">
+    <div style="font-size: 13px; font-weight: 700; color: #ffffff; margin-bottom: 6px;">Connect to Polaris</div>
+    <div style="font-size: 11px; color: #9ca3af; margin-bottom: 14px;">
+      Authenticate with your Polaris Web Application account to enable focus guidance and automated tracking.
+    </div>
+    <button id="connectBtn" class="btn btn-primary">Connect to Polaris</button>
+  </div>
+
+  <!-- AUTH STATE: CONNECTED -->
+  <div id="authView" style="display: block;">
+    <div class="card">
+      <div class="user-profile">
+        <div>
+          <div id="userName" class="user-name">Loading...</div>
+          <div id="userEmail" class="card-subtext">Checking connection...</div>
+        </div>
+        <span id="userRole" class="user-role">STUDENT</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Current Website</div>
+      <div id="currentWebsite" class="card-value">Detecting tab...</div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Current Learning Task</div>
+      <div id="currentPlan" class="card-value" style="color: #38bdf8;">No Active Plan</div>
+      <div id="currentTask" class="card-subtext">No active task selected</div>
+    </div>
+
+    <div class="metrics-grid">
+      <div class="card" style="margin-bottom: 0;">
+        <div class="card-label">Today's Study</div>
+        <div id="todayStudyTime" class="card-value">0m</div>
+      </div>
+      <div class="card" style="margin-bottom: 0;">
+        <div class="card-label">Focus Score</div>
+        <div id="focusScore" class="card-value" style="color: #34d399;">85%</div>
+      </div>
+    </div>
+
+    <div style="margin-top: 12px;">
+      <button id="focusBtn" class="btn btn-primary">Start Focus Session</button>
+      <button id="dashboardBtn" class="btn btn-secondary">Open Polaris Dashboard</button>
+    </div>
+  </div>
+
+  <div class="privacy-banner">
+    Privacy Protected: Tracking occurs strictly during active Focus Sessions. No tracking occurs outside Focus Sessions.
+  </div>
+
+  <script src="domains.js"></script>
+  <script src="storage.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>
