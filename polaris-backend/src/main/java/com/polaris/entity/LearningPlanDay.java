@@ -66,6 +66,9 @@ public class LearningPlanDay {
     @Column(name = "selected_resource_title", columnDefinition = "TEXT")
     private String selectedResourceTitle;
 
+    @Column(name = "resume_url", columnDefinition = "TEXT")
+    private String resumeUrl;
+
     @Column(name = "video_completed")
     @Builder.Default
     private Boolean videoCompleted = false;

@@ -1,9 +1,6 @@
 /**
  * Polaris Popup — Pure View Layer
  * 
- * This popup is a READ-ONLY view of the centralized polaris_state.
- * It NEVER queries tabs, calls the backend API, or determines learning state.
- * 
  * Data Source: chrome.storage.local (polaris_state)
  * Commands:   chrome.runtime.sendMessage → Background Service Worker
  * Live Updates: chrome.storage.onChanged
@@ -17,6 +14,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const connectBtn = document.getElementById('connectBtn');
   const dashboardBtn = document.getElementById('dashboardBtn');
   const focusBtn = document.getElementById('focusBtn');
+  const resumeVideoBtn = document.getElementById('resumeVideoBtn');
 
   const trackingBadge = document.getElementById('trackingBadge');
   const badgeDot = document.getElementById('badgeDot');
@@ -32,6 +30,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const todayStudyTime = document.getElementById('todayStudyTime');
   const focusScore = document.getElementById('focusScore');
 
+  let activeResumeUrl = null;
+
+  function formatDuration(seconds) {
+    const mins = Math.floor(seconds / 60);
+    const hrs = Math.floor(mins / 60);
+    if (hrs > 0) return `${hrs}h ${mins % 60}m`;
+    return `${mins}m`;
+  }
+
   // ─── Render UI from polaris_state ───────────────────────
   function renderUI(state) {
     if (!state) {
@@ -39,13 +46,13 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // Auth check
+    // Auth check: Check if token exists in persistent storage
     if (!state.auth || !state.auth.token) {
       showUnauth();
       return;
     }
 
-    // Show authenticated view
+    // Show authenticated view directly
     unauthView.style.display = 'none';
     authView.style.display = 'block';
     offlineBanner.style.display = 'none';
@@ -74,10 +81,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Focus session info
     const focus = state.focus || {};
     const planner = state.planner || {};
+    const video = state.video || {};
     const isFocusActive = !!focus.active;
 
     if (isFocusActive && ctx.isProductive) {
-      // Active tracking on a productive site
       if (planner.planTopic) {
         currentPlan.innerText = planner.planTopic;
         currentPlan.style.color = '#38bdf8';
@@ -92,15 +99,26 @@ document.addEventListener('DOMContentLoaded', () => {
         currentTask.innerText = 'Learning Task Active';
       }
     } else if (isFocusActive && !ctx.isProductive) {
-      // Focus active but on a non-productive site
       currentPlan.innerText = planner.planTopic || 'Focus Session Active';
       currentPlan.style.color = '#fbbf24';
       currentTask.innerText = 'Learning Paused (Non-Educational Website)';
     } else {
-      // No focus session
       currentPlan.innerText = 'No Active Learning';
       currentPlan.style.color = '#9ca3af';
       currentTask.innerText = 'No Focus Session Running';
+    }
+
+    // Continue Watching Button logic
+    activeResumeUrl = video.resumeUrl || video.watchUrl || null;
+    if (activeResumeUrl && resumeVideoBtn) {
+      resumeVideoBtn.style.display = 'block';
+      if (video.currentPosition && video.currentPosition > 0) {
+        resumeVideoBtn.innerText = `Continue Watching (${formatDuration(video.currentPosition)})`;
+      } else {
+        resumeVideoBtn.innerText = 'Continue Watching Video';
+      }
+    } else if (resumeVideoBtn) {
+      resumeVideoBtn.style.display = 'none';
     }
 
     // Metrics
@@ -161,9 +179,16 @@ document.addEventListener('DOMContentLoaded', () => {
     badgeText.innerText = 'Offline';
   }
 
-  // ─── Initial State Load ─────────────────────────────────
+  // ─── Startup Sequence (ISSUE 7) ────────────────────────
+  // 1. Read chrome.storage.local
+  // 2. Render stored user & session immediately if token exists
+  // 3. Trigger backend validation / sync in background
   chrome.storage.local.get('polaris_state', (res) => {
-    renderUI(res.polaris_state || null);
+    const state = res.polaris_state || null;
+    renderUI(state);
+
+    // Always trigger background auth check / sync when popup opens
+    chrome.runtime.sendMessage({ type: 'CHECK_AUTH' });
   });
 
   // ─── Live Updates via storage.onChanged ─────────────────
@@ -173,30 +198,33 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // ─── Resume Video Button ───────────────────────────────
+  if (resumeVideoBtn) {
+    resumeVideoBtn.addEventListener('click', () => {
+      if (activeResumeUrl) {
+        chrome.tabs.create({ url: activeResumeUrl });
+      }
+    });
+  }
+
   // ─── Focus Button ───────────────────────────────────────
   focusBtn.addEventListener('click', () => {
-    // Read current state to determine action
     chrome.storage.local.get('polaris_state', (res) => {
       const state = res.polaris_state || {};
       const isFocusActive = state.focus && state.focus.active;
 
       if (isFocusActive) {
-        chrome.runtime.sendMessage({ type: 'STOP_FOCUS' }, () => {
-          // State will update via storage.onChanged — no manual refresh needed
-        });
+        chrome.runtime.sendMessage({ type: 'STOP_FOCUS' });
       } else {
         const dayId = (state.planner && state.planner.dayId) ||
                        (state.focus && state.focus.dayId) || null;
-        chrome.runtime.sendMessage({ type: 'START_FOCUS', dayId }, () => {
-          // State will update via storage.onChanged
-        });
+        chrome.runtime.sendMessage({ type: 'START_FOCUS', dayId });
       }
     });
   });
 
   // ─── Connect Button ────────────────────────────────────
   connectBtn.addEventListener('click', async () => {
-    // Generate or retrieve device ID, then open auth page
     chrome.storage.local.get('polaris_state', (res) => {
       const state = res.polaris_state || {};
       const deviceId = (state.auth && state.auth.deviceId) || null;
@@ -204,16 +232,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (deviceId) {
         openAuthPage(deviceId);
       } else {
-        // Ask background to ensure device ID exists
         chrome.runtime.sendMessage({ type: 'GET_STATE' }, (bgState) => {
           const id = bgState && bgState.auth && bgState.auth.deviceId;
-          if (id) {
-            openAuthPage(id);
-          } else {
-            // Fallback: generate one
-            const newId = 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
-            openAuthPage(newId);
-          }
+          const newId = id || 'dev_' + Date.now().toString(36) + '_' + Math.random().toString(36).substring(2, 9);
+          openAuthPage(newId);
         });
       }
     });
@@ -228,4 +250,14 @@ document.addEventListener('DOMContentLoaded', () => {
   dashboardBtn.addEventListener('click', () => {
     chrome.tabs.create({ url: 'http://localhost:5173/dashboard' });
   });
+
+  // ─── Logout Button ─────────────────────────────────────
+  const logoutBtn = document.getElementById('logoutBtn');
+  if (logoutBtn) {
+    logoutBtn.addEventListener('click', async () => {
+      await StorageManager.clearAuth();
+      chrome.runtime.sendMessage({ type: 'AUTH_LOGOUT' });
+      showUnauth();
+    });
+  }
 });

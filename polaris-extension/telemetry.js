@@ -44,6 +44,13 @@
     }
   }
 
+  // ─── Listen for auth success postMessage from Polaris web app ───
+  window.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'POLARIS_AUTH_SUCCESS') {
+      sendToBackground({ type: 'CHECK_AUTH' });
+    }
+  });
+
   // ═══════════════════════════════════════════════════════════
   //  1. PAGE INFO & NAVIGATION DETECTION
   // ═══════════════════════════════════════════════════════════
@@ -257,17 +264,30 @@
 
     registerActivityListeners();
 
-    // Heartbeat every 5 seconds
+    // Heartbeat every 3 seconds
     heartbeatInterval = setInterval(() => {
       sendToBackground({ type: 'HEARTBEAT', timestamp: Date.now() });
-    }, 5000);
+    }, 3000);
 
-    // Telemetry every 5 seconds
+    // Telemetry every 3 seconds
     telemetryInterval = setInterval(() => {
       // YouTube video state
       const videoState = collectVideoState();
       if (videoState) {
-        sendToBackground(videoState);
+        try {
+          chrome.runtime.sendMessage({ type: 'GET_STATE' }, (state) => {
+            if (chrome.runtime.lastError || !state) {
+              sendToBackground(videoState);
+              return;
+            }
+            const isRelevant = checkVideoRelevanceAndEnforce(videoState, state);
+            if (isRelevant) {
+              sendToBackground(videoState);
+            }
+          });
+        } catch (e) {
+          sendToBackground(videoState);
+        }
         return; // Don't also send scroll state for YouTube
       }
 
@@ -276,7 +296,115 @@
       if (scrollState) {
         sendToBackground(scrollState);
       }
-    }, 5000);
+    }, 3000);
+  }
+
+  // ─── POLARIS FOCUS GUARD: Irrelevant Video Detection & Restriction ───
+  function checkVideoRelevanceAndEnforce(videoState, state) {
+    if (!state || !state.focus || !state.focus.active) {
+      removeFocusGuardOverlay();
+      return true;
+    }
+
+    const title = (videoState.title || document.title || '').toLowerCase();
+    if (!title || title.includes('loading') || title === 'youtube') return true;
+
+    const activeTopic = (state.planner && state.planner.topic) ||
+                        (state.focus && state.focus.topic) || '';
+    const topicLower = activeTopic.toLowerCase().trim();
+
+    // Distraction & Gaming Keywords
+    const distractionKeywords = [
+      'freefire', 'free fire', 'pubg', 'bgmi', 'gameplay', 'fortnite', 'gta',
+      'roblox', 'minecraft', 'vlog', 'prank', 'song', 'music video', 'trailer',
+      'movie', 'roast', 'gaming', 'highlights', 'funny', 'shorts', 'tiktok', 'reels',
+      '30 kill', 'headshot', 'solo vs squad'
+    ];
+
+    // Educational / Technical Keywords
+    const educationalKeywords = [
+      'spring', 'springboot', 'java', 'python', 'javascript', 'react', 'node',
+      'sql', 'database', 'tutorial', 'course', 'guide', 'explained', 'architecture',
+      'developer', 'coding', 'programming', 'api', 'microservices', 'framework',
+      'learn', 'setup', 'config', 'properties', 'system design', 'data structures',
+      'algorithms', 'web', 'dev', 'backend', 'frontend', 'docker', 'kubernetes', 'aws', 'git'
+    ];
+
+    const isDistraction = distractionKeywords.some(kw => title.includes(kw));
+
+    let matchesTopic = false;
+    if (topicLower.length > 0) {
+      const topicWords = topicLower.split(/\s+/).filter(w => w.length > 2);
+      matchesTopic = topicWords.some(w => title.includes(w));
+    }
+    const isEducational = educationalKeywords.some(kw => title.includes(kw));
+
+    if (isDistraction || (!matchesTopic && !isEducational)) {
+      const videoEl = document.querySelector('video');
+      if (videoEl && !videoEl.paused) {
+        videoEl.pause();
+      }
+      showFocusGuardOverlay(videoState.title || title, activeTopic || 'your learning topic');
+      return false;
+    } else {
+      removeFocusGuardOverlay();
+      return true;
+    }
+  }
+
+  function showFocusGuardOverlay(videoTitle, topicTitle) {
+    let overlay = document.getElementById('polaris-focus-guard');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'polaris-focus-guard';
+      overlay.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        background: rgba(3, 7, 18, 0.96);
+        backdrop-filter: blur(16px);
+        z-index: 9999999;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        color: #ffffff;
+        font-family: system-ui, -apple-system, sans-serif;
+        text-align: center;
+        padding: 24px;
+        box-sizing: border-box;
+      `;
+      document.body.appendChild(overlay);
+    }
+
+    overlay.innerHTML = `
+      <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 9999px; padding: 8px 18px; margin-bottom: 20px; color: #f87171; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.08em; box-shadow: 0 0 20px rgba(239, 68, 68, 0.2);">
+        🛡️ Polaris Focus Shield Active
+      </div>
+      <h2 style="font-size: 26px; font-weight: 800; margin: 0 0 12px 0; color: #ffffff; letter-spacing: -0.02em;">
+        Irrelevant Content Blocked
+      </h2>
+      <p style="font-size: 15px; color: #9ca3af; max-width: 540px; margin: 0 0 24px 0; line-height: 1.6;">
+        You are in an active Focus Session for <strong style="color: #38bdf8;">"${topicTitle}"</strong>.<br>
+        <span style="font-size: 13px; color: #6b7280; display: block; margin-top: 8px; font-style: italic;">Video: "${videoTitle}"</span>
+      </p>
+      <div style="display: flex; gap: 14px;">
+        <button id="polaris-btn-return-planner" style="background: linear-gradient(135deg, #0ea5e9, #6366f1); border: none; color: #ffffff; padding: 12px 24px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; box-shadow: 0 4px 14px rgba(14, 165, 233, 0.4);">
+          Return to Learning Dashboard
+        </button>
+      </div>
+    `;
+
+    document.getElementById('polaris-btn-return-planner')?.addEventListener('click', () => {
+      window.location.href = 'http://localhost:5173/planner/5';
+    });
+  }
+
+  function removeFocusGuardOverlay() {
+    const overlay = document.getElementById('polaris-focus-guard');
+    if (overlay) overlay.remove();
   }
 
   function stopTelemetry() {
@@ -299,8 +427,6 @@
       isFocusActive = !!message.active;
       if (isFocusActive) {
         startTelemetry();
-      } else {
-        stopTelemetry();
       }
     }
   });
@@ -326,22 +452,10 @@
   // Emit initial page info
   emitPageInfo();
 
-  // Ask background for current focus state
-  sendToBackground({ type: 'GET_STATE' });
-  try {
-    chrome.runtime.sendMessage({ type: 'GET_STATE' }, (response) => {
-      if (chrome.runtime.lastError) return;
-      if (response && response.focus && response.focus.active) {
-        isFocusActive = true;
-        startTelemetry();
-      }
-    });
-  } catch (e) {
-    // Extension context invalidated
-  }
+  // Always start telemetry for active tracking every 3 seconds
+  startTelemetry();
 
-  // Always send heartbeat (even before focus is confirmed) so background
-  // knows the content script is alive
+  // Send initial heartbeat
   sendToBackground({ type: 'HEARTBEAT', timestamp: Date.now() });
 
 })();

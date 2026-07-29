@@ -12,7 +12,11 @@ import lombok.NoArgsConstructor;
 public class ExtensionAuthStatusResponse {
     private boolean authorized;
     private String token;
+    private String refreshToken;
     private String email;
     private String studentName;
+    private Long studentId;
+    private String deviceId;
     private String role;
+    private String authTimestamp;
 }

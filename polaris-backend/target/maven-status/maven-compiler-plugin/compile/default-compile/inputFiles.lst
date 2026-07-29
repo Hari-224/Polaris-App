@@ -39,6 +39,7 @@ C:\Users\akhar\OneDrive\Desktop\Polaris-App\polaris-backend\src\main\java\com\po
 C:\Users\akhar\OneDrive\Desktop\Polaris-App\polaris-backend\src\main\java\com\polaris\entity\FocusSession.java
 C:\Users\akhar\OneDrive\Desktop\Polaris-App\polaris-backend\src\main\java\com\polaris\entity\LearningPlan.java
 C:\Users\akhar\OneDrive\Desktop\Polaris-App\polaris-backend\src\main\java\com\polaris\entity\LearningPlanDay.java
+C:\Users\akhar\OneDrive\Desktop\Polaris-App\polaris-backend\src\main\java\com\polaris\entity\LearningResource.java
 C:\Users\akhar\OneDrive\Desktop\Polaris-App\polaris-backend\src\main\java\com\polaris\entity\LearningSession.java
 C:\Users\akhar\OneDrive\Desktop\Polaris-App\polaris-backend\src\main\java\com\polaris\entity\Role.java
 C:\Users\akhar\OneDrive\Desktop\Polaris-App\polaris-backend\src\main\java\com\polaris\entity\TrackingActivity.java
@@ -56,6 +57,7 @@ C:\Users\akhar\OneDrive\Desktop\Polaris-App\polaris-backend\src\main\java\com\po
 C:\Users\akhar\OneDrive\Desktop\Polaris-App\polaris-backend\src\main\java\com\polaris\repository\FocusSessionRepository.java
 C:\Users\akhar\OneDrive\Desktop\Polaris-App\polaris-backend\src\main\java\com\polaris\repository\LearningPlanDayRepository.java
 C:\Users\akhar\OneDrive\Desktop\Polaris-App\polaris-backend\src\main\java\com\polaris\repository\LearningPlanRepository.java
+C:\Users\akhar\OneDrive\Desktop\Polaris-App\polaris-backend\src\main\java\com\polaris\repository\LearningResourceRepository.java
 C:\Users\akhar\OneDrive\Desktop\Polaris-App\polaris-backend\src\main\java\com\polaris\repository\LearningSessionRepository.java
 C:\Users\akhar\OneDrive\Desktop\Polaris-App\polaris-backend\src\main\java\com\polaris\repository\TrackingActivityRepository.java
 C:\Users\akhar\OneDrive\Desktop\Polaris-App\polaris-backend\src\main\java\com\polaris\repository\UserRepository.java

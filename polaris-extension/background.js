@@ -38,7 +38,7 @@ async function initialize() {
   // Setup chrome.alarms (survives MV3 service worker termination)
   chrome.alarms.create('heartbeat-check', { periodInMinutes: 0.25 });     // 15 seconds
   chrome.alarms.create('queue-flush', { periodInMinutes: 1 / 6 });        // 10 seconds
-  chrome.alarms.create('backend-sync', { periodInMinutes: 1 });           // 60 seconds
+  chrome.alarms.create('backend-sync', { periodInMinutes: 1 / 6 });        // 10 seconds
   chrome.alarms.create('study-time-tick', { periodInMinutes: 1 / 12 });   // 5 seconds
 
   // If authenticated, do an immediate backend sync
@@ -62,7 +62,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
       break;
 
     case 'queue-flush':
-      if (state.auth.token && state.focus.active) {
+      if (state.auth.token) {
         await TrackingQueue.flush(state.auth.token);
       }
       break;
@@ -141,6 +141,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     case 'SET_AUTH_TOKEN':
       handleSetAuthToken(message).then(() => sendResponse({ success: true }));
+      return true;
+
+    case 'AUTH_LOGOUT':
+      StorageManager.clearAuth().then(() => sendResponse({ success: true }));
       return true;
 
     default:
@@ -225,10 +229,14 @@ async function onTabContextChanged(tabContext) {
 // ═══════════════════════════════════════════════════════════════
 
 async function handleVideoState(message, senderTab) {
-  if (!senderTab || !senderTab.active) return;
+  if (!senderTab) return;
 
   const state = await StorageManager.getState();
-  if (!state.focus.active) return;
+  if (!state.auth.token) return;
+
+  const watchUrl = message.videoId ? `https://www.youtube.com/watch?v=${message.videoId}` : state.video.watchUrl;
+  const currentPos = message.currentPosition || 0;
+  const resumeUrl = watchUrl && currentPos > 0 ? `${watchUrl}&t=${currentPos}` : watchUrl;
 
   // Update video state in storage
   const videoUpdate = {
@@ -237,29 +245,32 @@ async function handleVideoState(message, senderTab) {
       title: message.title || state.video.title,
       channel: message.channel || state.video.channel,
       duration: message.duration || state.video.duration,
-      currentPosition: message.currentPosition || 0,
+      currentPosition: currentPos,
       watchPercentage: message.watchPercentage || 0,
       playbackState: message.playbackState || state.video.playbackState,
-      watchUrl: message.videoId ? `https://www.youtube.com/watch?v=${message.videoId}` : state.video.watchUrl,
+      watchUrl: watchUrl,
+      resumeUrl: resumeUrl,
     },
   };
 
   await StorageManager.updateState(videoUpdate);
 
-  // Enqueue resource tracking
-  if (state.focus.sessionId && message.videoId) {
+  // Enqueue resource tracking to backend
+  if (message.videoId) {
     TrackingQueue.updateResource({
-      sessionId: state.focus.sessionId,
-      dayId: state.focus.dayId,
-      resourceUrl: videoUpdate.video.watchUrl,
+      sessionId: state.focus.sessionId || null,
+      dayId: state.focus.dayId || state.planner.dayId || null,
+      resourceUrl: watchUrl,
       resourceTitle: videoUpdate.video.title,
       channelName: videoUpdate.video.channel,
       videoId: message.videoId,
       duration: message.duration || 0,
-      currentPosition: message.currentPosition || 0,
+      currentPosition: currentPos,
       watchPercentage: message.watchPercentage || 0,
       resourceType: 'YouTube',
     });
+    // Flush tracking queue to Spring Boot backend immediately (3s cycle)
+    TrackingQueue.flush(state.auth.token);
   }
 }
 
@@ -407,8 +418,17 @@ async function handleStartFocus(message, sendResponse) {
     await StorageManager.setFocusSession(res.data);
 
     // Update planner context from the session response
-    if (res.data.dayId) {
-      // Will be populated fully on next backend sync
+    if (res.data.dayId || res.data.dayTitle) {
+      await StorageManager.updateState({
+        planner: {
+          planId: res.data.planId || state.planner.planId,
+          planTopic: res.data.planTopic || state.planner.planTopic,
+          dayId: res.data.dayId,
+          dayNumber: res.data.dayNumber,
+          dayTitle: res.data.dayTitle,
+          estimatedMinutes: res.data.estimatedStudyMinutes || state.planner.estimatedMinutes,
+        }
+      });
     }
 
     // Apply state machine transition
@@ -490,11 +510,20 @@ async function checkDeviceAuth() {
 
   if (res && res.success && res.data && res.data.authorized && res.data.token) {
     console.log('[Polaris] Device authorization confirmed');
-    await StorageManager.setAuth(res.data.token, {
-      email: res.data.email,
-      firstName: res.data.studentName,
-      role: res.data.role,
-    });
+    await StorageManager.setAuth(
+      res.data.token,
+      {
+        email: res.data.email,
+        firstName: res.data.studentName,
+        role: res.data.role,
+      },
+      {
+        refreshToken: res.data.refreshToken,
+        deviceId: res.data.deviceId || deviceId,
+        studentId: res.data.studentId,
+        authTimestamp: res.data.authTimestamp,
+      }
+    );
     await applyTransition(EVENTS.AUTH_GAINED, {});
     await syncWithBackend();
   }
@@ -551,6 +580,7 @@ async function syncWithBackend() {
     syncUpdate.planner = {
       planId: data.planId || state.planner.planId,
       planTopic: data.planTopic || state.planner.planTopic,
+      dayId: data.dayId || state.planner.dayId,
       dayNumber: data.dayNumber || state.planner.dayNumber,
       dayTitle: data.dayTitle || state.planner.dayTitle,
       estimatedMinutes: data.estimatedStudyMinutes || state.planner.estimatedMinutes,
@@ -559,12 +589,12 @@ async function syncWithBackend() {
 
   // Sync focus session state from backend
   const backendFocusActive = data.focusStatus === 'ACTIVE';
-  if (backendFocusActive && !state.focus.active) {
-    // Backend says focus is active but extension doesn't know — sync it
+  if (backendFocusActive) {
+    // Sync active session context from backend
     syncUpdate.focus = {
       active: true,
       sessionId: data.activeSessionId,
-      dayId: data.dayId || null,
+      dayId: data.dayId || state.focus.dayId || null,
       startTime: state.focus.startTime || new Date().toISOString(),
     };
   } else if (!backendFocusActive && state.focus.active) {
@@ -612,3 +642,15 @@ function notifyAllContentScripts(type, payload = {}) {
 // ═══════════════════════════════════════════════════════════════
 
 initialize();
+
+// Repeating flush timer to sync telemetry to Spring Boot every 3 seconds
+setInterval(async () => {
+  try {
+    const state = await StorageManager.getState();
+    if (state && state.auth && state.auth.token) {
+      await TrackingQueue.flush(state.auth.token);
+    }
+  } catch (e) {
+    // Ignore async background storage errors
+  }
+}, 3000);

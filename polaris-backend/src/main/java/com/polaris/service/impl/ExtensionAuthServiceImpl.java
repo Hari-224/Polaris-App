@@ -74,7 +74,10 @@ public class ExtensionAuthServiceImpl implements ExtensionAuthService {
                 .token(extensionToken)
                 .email(user.getEmail())
                 .studentName(studentName.trim())
+                .studentId(user.getId())
+                .deviceId(request.getDeviceId())
                 .role(user.getRole() != null ? user.getRole().name() : "STUDENT")
+                .authTimestamp(pairing.getCreatedAt() != null ? pairing.getCreatedAt().toString() : java.time.LocalDateTime.now().toString())
                 .build();
     }
 
@@ -101,7 +104,10 @@ public class ExtensionAuthServiceImpl implements ExtensionAuthService {
                         .token(pairing.getExtensionToken())
                         .email(user.getEmail())
                         .studentName(studentName.trim())
+                        .studentId(user.getId())
+                        .deviceId(pairing.getDeviceId())
                         .role(user.getRole() != null ? user.getRole().name() : "STUDENT")
+                        .authTimestamp(pairing.getCreatedAt() != null ? pairing.getCreatedAt().toString() : java.time.LocalDateTime.now().toString())
                         .build();
             }
         }

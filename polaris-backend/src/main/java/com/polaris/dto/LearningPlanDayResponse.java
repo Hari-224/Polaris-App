@@ -26,6 +26,7 @@ public class LearningPlanDayResponse {
     private String resourceType;
     private String selectedResourceUrl;
     private String selectedResourceTitle;
+    private String resumeUrl;
     private Boolean videoCompleted;
     private Boolean quizCompleted;
     private String status;

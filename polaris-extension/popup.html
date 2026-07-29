@@ -237,7 +237,10 @@
           <div id="userName" class="user-name">Loading...</div>
           <div id="userEmail" class="card-subtext">Checking connection...</div>
         </div>
-        <span id="userRole" class="user-role">STUDENT</span>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span id="userRole" class="user-role">STUDENT</span>
+          <button id="logoutBtn" style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #f87171; border-radius: 6px; padding: 2px 8px; font-size: 10px; font-weight: 700; cursor: pointer;" title="Logout from Polaris">Logout</button>
+        </div>
       </div>
     </div>
 
@@ -250,6 +253,9 @@
       <div class="card-label">Current Learning Task</div>
       <div id="currentPlan" class="card-value" style="color: #38bdf8;">No Active Plan</div>
       <div id="currentTask" class="card-subtext">No active task selected</div>
+      <button id="resumeVideoBtn" class="btn btn-secondary" style="display: none; margin-top: 8px; margin-bottom: 0; background-color: rgba(14, 165, 233, 0.1); color: #38bdf8; border: 1px solid rgba(14, 165, 233, 0.3);">
+        Continue Watching
+      </button>
     </div>
 
     <div class="metrics-grid">

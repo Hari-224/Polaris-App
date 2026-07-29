@@ -14,6 +14,16 @@ public class LearningPlanMapper {
     private LearningPlanMapper() {
     }
 
+    public static String cleanseUrl(String url) {
+        if (url == null || url.trim().isEmpty()) {
+            return null;
+        }
+        if (url.contains("youtube.com/results") || url.contains("search_query=")) {
+            return null;
+        }
+        return url.trim();
+    }
+
     public static LearningPlanResponse toResponse(LearningPlan plan) {
         if (plan == null) {
             return null;
@@ -49,6 +59,22 @@ public class LearningPlanMapper {
             objectivesList = Arrays.asList(day.getLearningObjectives().split("\n"));
         }
 
+        String resourceUrl = cleanseUrl(day.getSelectedResourceUrl());
+        String resumeUrl = cleanseUrl(day.getResumeUrl());
+
+        if (resumeUrl == null && day.getVideoId() != null && !day.getVideoId().trim().isEmpty()) {
+            resumeUrl = "https://www.youtube.com/watch?v=" + day.getVideoId();
+            if (day.getLastWatchPosition() != null && day.getLastWatchPosition() > 0) {
+                resumeUrl += "&t=" + day.getLastWatchPosition();
+            }
+        } else if (resumeUrl == null) {
+            resumeUrl = resourceUrl;
+        }
+
+        if (resourceUrl == null && day.getVideoId() != null && !day.getVideoId().trim().isEmpty()) {
+            resourceUrl = "https://www.youtube.com/watch?v=" + day.getVideoId();
+        }
+
         return LearningPlanDayResponse.builder()
                 .id(day.getId())
                 .dayNumber(day.getDayNumber())
@@ -60,8 +86,9 @@ public class LearningPlanMapper {
                 .estimatedStudyMinutes(day.getEstimatedStudyMinutes())
                 .difficulty(day.getDifficulty())
                 .resourceType(day.getResourceType())
-                .selectedResourceUrl(day.getSelectedResourceUrl())
+                .selectedResourceUrl(resourceUrl)
                 .selectedResourceTitle(day.getSelectedResourceTitle())
+                .resumeUrl(resumeUrl)
                 .videoCompleted(day.getVideoCompleted())
                 .quizCompleted(day.getQuizCompleted())
                 .status(day.getStatus())

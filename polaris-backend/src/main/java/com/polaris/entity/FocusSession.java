@@ -61,6 +61,9 @@ public class FocusSession {
     @Column(name = "current_resource_url", columnDefinition = "TEXT")
     private String currentResourceUrl;
 
+    @Column(name = "resume_url", columnDefinition = "TEXT")
+    private String resumeUrl;
+
     @Column(name = "resource_type", length = 50)
     private String resourceType;
 

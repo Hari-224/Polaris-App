@@ -2,6 +2,7 @@ package com.polaris.controller;
 
 import com.polaris.common.ApiResponse;
 import com.polaris.dto.EndFocusRequest;
+import com.polaris.dto.ExtensionContextResponse;
 import com.polaris.dto.FocusSessionResponse;
 import com.polaris.dto.StartFocusRequest;
 import com.polaris.dto.TrackingActivityRequest;
@@ -9,6 +10,7 @@ import com.polaris.dto.TrackingResourceRequest;
 import com.polaris.dto.TrackingSessionRequest;
 import com.polaris.service.FocusTrackingService;
 import java.util.List;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -27,12 +29,23 @@ public class FocusTrackingController {
         this.focusTrackingService = focusTrackingService;
     }
 
+    private String getEmail(Authentication authentication) {
+        if (authentication == null || authentication.getName() == null) {
+            return null;
+        }
+        return authentication.getName();
+    }
+
     @PostMapping("/focus/start")
     public ResponseEntity<ApiResponse<FocusSessionResponse>> startFocusSession(
             @RequestBody(required = false) StartFocusRequest request,
             Authentication authentication
     ) {
-        FocusSessionResponse response = focusTrackingService.startFocusSession(request, authentication.getName());
+        String email = getEmail(authentication);
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Unauthorized"));
+        }
+        FocusSessionResponse response = focusTrackingService.startFocusSession(request, email);
         return ResponseEntity.ok(ApiResponse.success("Focus Session started successfully", response));
     }
 
@@ -41,7 +54,11 @@ public class FocusTrackingController {
             @RequestBody(required = false) EndFocusRequest request,
             Authentication authentication
     ) {
-        FocusSessionResponse response = focusTrackingService.endFocusSession(request, authentication.getName());
+        String email = getEmail(authentication);
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Unauthorized"));
+        }
+        FocusSessionResponse response = focusTrackingService.endFocusSession(request, email);
         return ResponseEntity.ok(ApiResponse.success("Focus Session ended successfully", response));
     }
 
@@ -49,15 +66,23 @@ public class FocusTrackingController {
     public ResponseEntity<ApiResponse<FocusSessionResponse>> getActiveFocusSession(
             Authentication authentication
     ) {
-        FocusSessionResponse response = focusTrackingService.getActiveFocusSession(authentication.getName());
+        String email = getEmail(authentication);
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Unauthorized"));
+        }
+        FocusSessionResponse response = focusTrackingService.getActiveFocusSession(email);
         return ResponseEntity.ok(ApiResponse.success("Active Focus Session retrieved", response));
     }
 
     @GetMapping("/extension/context")
-    public ResponseEntity<ApiResponse<com.polaris.dto.ExtensionContextResponse>> getExtensionContext(
+    public ResponseEntity<ApiResponse<ExtensionContextResponse>> getExtensionContext(
             Authentication authentication
     ) {
-        com.polaris.dto.ExtensionContextResponse response = focusTrackingService.getExtensionContext(authentication.getName());
+        String email = getEmail(authentication);
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Unauthorized"));
+        }
+        ExtensionContextResponse response = focusTrackingService.getExtensionContext(email);
         return ResponseEntity.ok(ApiResponse.success("Extension context retrieved", response));
     }
 
@@ -66,7 +91,11 @@ public class FocusTrackingController {
             @RequestBody TrackingSessionRequest request,
             Authentication authentication
     ) {
-        focusTrackingService.trackSession(request, authentication.getName());
+        String email = getEmail(authentication);
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Unauthorized"));
+        }
+        focusTrackingService.trackSession(request, email);
         return ResponseEntity.ok(ApiResponse.success("Session tracking data recorded"));
     }
 
@@ -75,7 +104,11 @@ public class FocusTrackingController {
             @RequestBody TrackingResourceRequest request,
             Authentication authentication
     ) {
-        focusTrackingService.trackResource(request, authentication.getName());
+        String email = getEmail(authentication);
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Unauthorized"));
+        }
+        focusTrackingService.trackResource(request, email);
         return ResponseEntity.ok(ApiResponse.success("Resource tracking data recorded"));
     }
 
@@ -84,7 +117,11 @@ public class FocusTrackingController {
             @RequestBody TrackingActivityRequest request,
             Authentication authentication
     ) {
-        focusTrackingService.trackActivity(request, authentication.getName());
+        String email = getEmail(authentication);
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Unauthorized"));
+        }
+        focusTrackingService.trackActivity(request, email);
         return ResponseEntity.ok(ApiResponse.success("Activity tracking data recorded"));
     }
 
@@ -93,7 +130,11 @@ public class FocusTrackingController {
             @RequestBody List<TrackingActivityRequest> requests,
             Authentication authentication
     ) {
-        focusTrackingService.trackActivityBatch(requests, authentication.getName());
+        String email = getEmail(authentication);
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Unauthorized"));
+        }
+        focusTrackingService.trackActivityBatch(requests, email);
         return ResponseEntity.ok(ApiResponse.success("Batch activity tracking data recorded"));
     }
 
@@ -102,7 +143,11 @@ public class FocusTrackingController {
             @RequestBody List<TrackingResourceRequest> requests,
             Authentication authentication
     ) {
-        focusTrackingService.trackResourceBatch(requests, authentication.getName());
+        String email = getEmail(authentication);
+        if (email == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Unauthorized"));
+        }
+        focusTrackingService.trackResourceBatch(requests, email);
         return ResponseEntity.ok(ApiResponse.success("Batch resource tracking data recorded"));
     }
 }

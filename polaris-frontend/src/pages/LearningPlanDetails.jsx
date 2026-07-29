@@ -31,6 +31,17 @@ export default function LearningPlanDetails() {
 
   useEffect(() => {
     fetchPlanDetails();
+
+    // Auto-refresh plan details every 5 seconds so live YouTube watch progress updates in real-time
+    const interval = setInterval(() => {
+      plannerService.getPlanDetails(id).then((res) => {
+        if (res && res.success && res.data) {
+          setPlan(res.data);
+        }
+      }).catch(() => {});
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, [id]);
 
   const handleToggleComplete = async (dayId, completed) => {

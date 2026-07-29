@@ -10,4 +10,6 @@ import lombok.NoArgsConstructor;
 public class StartFocusRequest {
     private Long dayId;
     private String topic;
+    private String currentResourceUrl;
+    private String resourceType;
 }

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import focusService from '../services/focusService';
 
 export default function LearningDayCard({ day, onToggleComplete, onUpdateDay, onDeleteDay, onUpdateResource, planId }) {
   const {
@@ -12,6 +13,8 @@ export default function LearningDayCard({ day, onToggleComplete, onUpdateDay, on
     resourceType,
     selectedResourceUrl,
     selectedResourceTitle,
+    resumeUrl,
+    videoId,
     status = 'NOT_STARTED',
     watchPercentage = 0,
     videoCompleted = false,
@@ -47,7 +50,7 @@ export default function LearningDayCard({ day, onToggleComplete, onUpdateDay, on
     setError('');
     try {
       await onUpdateResource(id, {
-        resourceUrl: selectedResourceUrl || 'https://www.youtube.com',
+        resourceUrl: selectedResourceUrl || (videoId ? `https://www.youtube.com/watch?v=${videoId}` : ''),
         resourceTitle: selectedResourceTitle || 'Linked Video',
         resourceType: 'YouTube',
         watchPercentage: watchPercentage,
@@ -69,13 +72,35 @@ export default function LearningDayCard({ day, onToggleComplete, onUpdateDay, on
     }
   };
 
-  const handleOpenYouTube = () => {
-    if (selectedResourceUrl && selectedResourceUrl.trim().length > 0) {
-      window.open(selectedResourceUrl, '_blank');
-    } else {
-      const searchQuery = encodeURIComponent(title || '');
-      window.open(`https://www.youtube.com/results?search_query=${searchQuery}`, '_blank');
+  const sanitizeUrl = (url) => {
+    if (!url || typeof url !== 'string') return null;
+    if (url.includes('youtube.com/results') || url.includes('search_query=')) return null;
+    return url.trim();
+  };
+
+  const validResumeUrl = sanitizeUrl(resumeUrl);
+  const validResourceUrl = sanitizeUrl(selectedResourceUrl);
+  const targetWatchUrl = validResumeUrl || validResourceUrl || (videoId ? `https://www.youtube.com/watch?v=${videoId}` : null);
+
+  const handleOpenVideo = async () => {
+    const searchQueryUrl = `https://www.youtube.com/results?search_query=${encodeURIComponent(title || '')}`;
+    const openUrl = targetWatchUrl && targetWatchUrl.trim().length > 0 ? targetWatchUrl : searchQueryUrl;
+
+    try {
+      await focusService.startFocus(id);
+      if (onUpdateResource) {
+        await onUpdateResource(id, {
+          resourceUrl: openUrl,
+          resourceTitle: title || 'Learning Video',
+          resourceType: 'YouTube',
+          status: 'LEARNING',
+        });
+      }
+    } catch (e) {
+      // Fallback
     }
+
+    window.open(openUrl, '_blank');
   };
 
   return (
@@ -225,14 +250,14 @@ export default function LearningDayCard({ day, onToggleComplete, onUpdateDay, on
 
       {/* Resource selector Section */}
       <div className="pt-3 border-t border-slate-950/40 space-y-2.5">
-        {selectedResourceUrl ? (
+        {targetWatchUrl ? (
           <div className="flex items-center justify-between gap-4 bg-slate-950/40 border border-slate-800 rounded-xl p-3">
             <div className="min-w-0">
               <p className="text-xs font-bold text-white truncate">{selectedResourceTitle || 'Linked Video'}</p>
-              <p className="text-[10px] text-slate-500 mt-0.5 truncate">{selectedResourceUrl}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5 truncate">{targetWatchUrl}</p>
             </div>
             <button
-              onClick={() => window.open(selectedResourceUrl, '_blank')}
+              onClick={handleOpenVideo}
               className="flex items-center gap-1.5 rounded-lg bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 px-3 py-1.5 text-xs font-bold border border-sky-500/20 shrink-0"
             >
               Continue Watching
@@ -240,18 +265,18 @@ export default function LearningDayCard({ day, onToggleComplete, onUpdateDay, on
           </div>
         ) : (
           <button
-            onClick={handleOpenYouTube}
+            onClick={handleOpenVideo}
             className="w-full flex items-center justify-center gap-1.5 rounded-xl border border-slate-800 bg-slate-950/40 hover:bg-slate-800 text-slate-400 hover:text-white px-4 py-2.5 text-xs font-bold transition-all"
           >
             <svg className="h-4 w-4 text-red-500" fill="currentColor" viewBox="0 0 24 24">
               <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.107C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.388.511a3.003 3.003 0 0 0-2.11 2.107C0 8.053 0 12 0 12s0 3.947.502 5.837a3.003 3.003 0 0 0 2.11 2.107C4.495 20.455 12 20.455 12 20.455s7.505 0 9.388-.511a3.003 3.003 0 0 0 2.11-2.107C24 15.947 24 12 24 12s0-3.947-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
             </svg>
-            Open YouTube
+            Find Video on YouTube
           </button>
         )}
       </div>
 
-      {/* Day Status Select & Action Buttons */}
+      {/* Day Status Actions & Override */}
       <div className="flex items-center justify-between gap-4 pt-3 border-t border-slate-950/40">
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Status</span>
@@ -260,10 +285,8 @@ export default function LearningDayCard({ day, onToggleComplete, onUpdateDay, on
             onChange={(e) => handleStatusChange(e.target.value)}
             className="rounded-lg border border-slate-800 bg-slate-950 text-slate-300 px-2 py-1 text-xs focus:border-sky-500 focus:outline-none"
           >
-            <option value="NOT_STARTED">Not Started</option>
-            <option value="LEARNING">Learning</option>
-            <option value="NEEDS_REVISION">Needs Revision</option>
-            <option value="MASTERED">Mastered</option>
+            <option value={status} disabled>{status.replace('_', ' ')} (Backend Calculated)</option>
+            {status !== 'NEEDS_REVISION' && <option value="NEEDS_REVISION">Request Revision</option>}
           </select>
         </div>
 
@@ -278,8 +301,8 @@ export default function LearningDayCard({ day, onToggleComplete, onUpdateDay, on
           )}
 
           <button
-            onClick={() => alert('Quiz functionality will be implemented in a later phase.')}
-            className="rounded-lg border border-slate-800 bg-slate-900/50 hover:bg-slate-800 text-slate-300 hover:text-white px-3 py-1 text-xs font-bold transition-all animate-pulse"
+            onClick={() => alert('Quiz functionality will evaluate topic understanding and grant Mastered status upon passing.')}
+            className="rounded-lg border border-slate-800 bg-slate-900/50 hover:bg-slate-800 text-slate-300 hover:text-white px-3 py-1 text-xs font-bold transition-all"
           >
             Take Quiz
           </button>

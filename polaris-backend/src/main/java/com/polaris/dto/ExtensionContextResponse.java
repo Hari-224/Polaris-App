@@ -37,5 +37,6 @@ public class ExtensionContextResponse {
     private Integer lastPlaybackPosition;
     private Integer videoDuration;
     private String watchUrl;
+    private String resumeUrl;
     private Integer watchPercentage;
 }

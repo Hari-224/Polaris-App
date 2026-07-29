@@ -10,7 +10,7 @@
  * - Batch endpoints for tracking data
  */
 
-const API_BASE_URL = 'http://localhost:8081/api';
+let API_BASE_URL = 'http://localhost:8081/api';
 
 const RETRY_DELAYS = [1000, 2000, 5000];
 
@@ -49,9 +49,20 @@ async function fetchWithAuth(endpoint, options = {}, token = null, retryCount = 
       return fetchWithAuth(endpoint, options, token, retryCount + 1);
     }
 
-    const data = await response.json();
-    return data;
+    try {
+      const data = await response.json();
+      return data;
+    } catch (e) {
+      return { success: false, error: 'Invalid JSON response' };
+    }
   } catch (err) {
+    // Switch host on network error in MV3 service worker
+    if (API_BASE_URL.includes('localhost')) {
+      API_BASE_URL = 'http://127.0.0.1:8081/api';
+    } else if (API_BASE_URL.includes('127.0.0.1')) {
+      API_BASE_URL = 'http://localhost:8081/api';
+    }
+
     if (retryCount < RETRY_DELAYS.length) {
       console.warn(`[Polaris API] Network error on ${endpoint}, retrying (${retryCount + 1}/${RETRY_DELAYS.length})...`);
       await sleep(RETRY_DELAYS[retryCount]);

@@ -37,12 +37,23 @@ export default function ExtensionAuth() {
 
       if (response && response.success) {
         setAuthorized(true);
+        window.postMessage({ type: 'POLARIS_AUTH_SUCCESS', deviceId }, '*');
       } else {
         setError(response?.message || 'Failed to authorize Chrome Extension.');
       }
     } catch (err) {
       console.error('Authorization error:', err);
-      setError(err.response?.data?.message || 'Error connecting extension to Polaris backend.');
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        setError('Your session has expired. Redirecting to login to re-authenticate...');
+        setTimeout(() => {
+          const redirectUrl = deviceId
+            ? `/login?redirect=${encodeURIComponent(`/extension-auth?device_id=${deviceId}`)}`
+            : '/login?redirect=/extension-auth';
+          navigate(redirectUrl);
+        }, 1500);
+      } else {
+        setError(err.response?.data?.message || 'Error connecting extension to Polaris backend.');
+      }
     } finally {
       setLoading(false);
     }

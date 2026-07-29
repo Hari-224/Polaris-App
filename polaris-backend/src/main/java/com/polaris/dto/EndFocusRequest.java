@@ -10,4 +10,6 @@ import lombok.NoArgsConstructor;
 public class EndFocusRequest {
     private Long sessionId;
     private String reason;
+    private Double focusScore;
+    private Integer totalDurationSeconds;
 }

@@ -31,19 +31,10 @@ const TabController = {
 
     chrome.windows.onFocusChanged.addListener((windowId) => {
       if (windowId === chrome.windows.WINDOW_ID_NONE) {
-        // All Chrome windows lost focus (user switched to another app)
-        this._onContextChanged({
-          tabId: null,
-          url: null,
-          hostname: null,
-          title: null,
-          website: null,
-          category: null,
-          isProductive: false,
-          windowFocused: false,
-        });
+        // Window lost focus — keep current tracking context active during focus session
+        return;
       } else {
-        // A Chrome window gained focus — resolve its active tab
+        // A Chrome window gained focus — resolve its active tab if it's a normal browser window
         this._resolveActiveTabInWindow(windowId);
       }
     });
@@ -96,9 +87,12 @@ const TabController = {
   },
 
   _resolveActiveTabInWindow(windowId) {
-    chrome.tabs.query({ active: true, windowId }, (tabs) => {
-      if (chrome.runtime.lastError || !tabs || !tabs[0]) return;
-      this._processTab(tabs[0]);
+    chrome.windows.get(windowId, (win) => {
+      if (chrome.runtime.lastError || !win || win.type !== 'normal') return;
+      chrome.tabs.query({ active: true, windowId }, (tabs) => {
+        if (chrome.runtime.lastError || !tabs || !tabs[0]) return;
+        this._processTab(tabs[0]);
+      });
     });
   },
 
@@ -110,7 +104,11 @@ const TabController = {
   },
 
   _processTab(tab) {
-    if (!tab.url) return;
+    if (!tab || !tab.url) return;
+    if (tab.url.startsWith('chrome-extension://') || tab.url.startsWith('chrome://') || tab.url.startsWith('edge://') || tab.url.startsWith('about:')) {
+      // Ignore extension popup and internal pages so the tracked learning site is not overwritten
+      return;
+    }
     try {
       const url = new URL(tab.url);
       const domain = classifyDomain(url.hostname);
@@ -125,34 +123,25 @@ const TabController = {
         windowFocused: true,
       });
     } catch (e) {
-      // Internal chrome:// or edge:// pages — treat as non-productive
+      // Ignore errors for internal URL parsing
+    }
+  },
+
+  _onTabRemoved(tabId) {
+    if (tabId === this._currentTabId) {
+      this._currentTabId = null;
       this._onContextChanged({
-        tabId: tab.id,
-        url: tab.url,
+        tabId: null,
+        removed: true,
+        url: null,
         hostname: null,
-        title: tab.title || '',
+        title: null,
         website: null,
         category: null,
         isProductive: false,
         windowFocused: true,
       });
     }
-  },
-
-  _onTabRemoved(tabId) {
-    // Notify background that a tab was removed so it can check if
-    // it was the currently tracked tab
-    this._onContextChanged({
-      tabId: tabId,
-      removed: true,
-      url: null,
-      hostname: null,
-      title: null,
-      website: null,
-      category: null,
-      isProductive: false,
-      windowFocused: true,
-    });
   },
 
   _onContextChanged: null,

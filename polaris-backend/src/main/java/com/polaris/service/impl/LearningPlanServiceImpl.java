@@ -232,8 +232,12 @@ public class LearningPlanServiceImpl implements LearningPlanService {
         LearningPlan plan = getValidatedPlan(planId, userEmail);
         LearningPlanDay day = getValidatedDay(plan, dayId);
 
-        day.setSelectedResourceUrl(request.getResourceUrl());
-        day.setSelectedResourceTitle(request.getResourceTitle());
+        if (request.getResourceUrl() != null && !request.getResourceUrl().trim().isEmpty()) {
+            day.setSelectedResourceUrl(request.getResourceUrl());
+        }
+        if (request.getResourceTitle() != null && !request.getResourceTitle().trim().isEmpty()) {
+            day.setSelectedResourceTitle(request.getResourceTitle());
+        }
         day.setResourceType(request.getResourceType() != null ? request.getResourceType() : "YouTube");
 
         if (request.getWatchPercentage() != null) {
@@ -244,29 +248,22 @@ public class LearningPlanServiceImpl implements LearningPlanService {
             day.setVideoCompleted(request.getVideoCompleted());
         }
 
-        // Handle status mapping
+        // Status rules calculation
         if (request.getStatus() != null) {
             String newStatus = request.getStatus().toUpperCase();
             if ("MASTERED".equals(newStatus)) {
-                if (day.getSelectedResourceUrl() == null) {
-                    throw new BadRequestException("You must select and watch a resource before mastering this task.");
+                if (day.getWatchPercentage() < 100 || !Boolean.TRUE.equals(day.getQuizCompleted())) {
+                    throw new BadRequestException("Mastered status requires 100% completion and passing the quiz.");
                 }
-                boolean hasSession = !learningSessionRepository.findByLearningPlanDayId(dayId).isEmpty();
-                if (!hasSession) {
-                    throw new BadRequestException("You must record at least one learning study session before mastering this task.");
-                }
-            }
-            day.setStatus(newStatus);
-        } else {
-            if (day.getVideoCompleted() || day.getWatchPercentage() >= 90) {
-                // Do not auto-master, default to In Progress (LEARNING) if studied
-                // Mastered status must be set manually by clicking "I Understood" or status dropdown
-                day.setStatus("LEARNING");
-            } else if (day.getWatchPercentage() > 0) {
-                day.setStatus("LEARNING");
+                day.setStatus("MASTERED");
+            } else if ("NEEDS_REVISION".equals(newStatus)) {
+                day.setStatus("NEEDS_REVISION");
             } else {
-                day.setStatus("NOT_STARTED");
+                // Auto compute based on progress
+                day.setStatus(computeDayStatus(day.getWatchPercentage(), Boolean.TRUE.equals(day.getQuizCompleted())));
             }
+        } else {
+            day.setStatus(computeDayStatus(day.getWatchPercentage(), Boolean.TRUE.equals(day.getQuizCompleted())));
         }
 
         // Sync completed checkbox status based on day status
@@ -278,6 +275,19 @@ public class LearningPlanServiceImpl implements LearningPlanService {
         updatePlanCompletion(plan);
 
         return LearningPlanMapper.toDayResponse(day);
+    }
+
+    private String computeDayStatus(Integer watchPercentage, boolean quizCompleted) {
+        int pct = watchPercentage != null ? watchPercentage : 0;
+        if (pct >= 100 && quizCompleted) {
+            return "MASTERED";
+        } else if (pct >= 80) {
+            return "NEEDS_REVISION";
+        } else if (pct >= 1) {
+            return "LEARNING";
+        } else {
+            return "NOT_STARTED";
+        }
     }
 
     private LearningPlan getValidatedPlan(Long planId, String userEmail) {

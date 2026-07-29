@@ -12,8 +12,11 @@ const DEFAULT_STATE = {
   // Authentication
   auth: {
     token: null,
-    user: null,       // { email, firstName, role }
+    refreshToken: null,
+    user: null,
     deviceId: null,
+    studentId: null,
+    authTimestamp: null,
   },
 
   // Focus Session
@@ -45,6 +48,7 @@ const DEFAULT_STATE = {
     watchPercentage: 0,
     playbackState: null,    // "playing" | "paused" | "ended"
     watchUrl: null,         // https://youtube.com/watch?v=VIDEO_ID
+    resumeUrl: null,        // https://youtube.com/watch?v=VIDEO_ID&t=143
   },
 
   // Article State (Documentation pages)
@@ -167,9 +171,17 @@ const StorageManager = {
     return state.auth.token || null;
   },
 
-  async setAuth(token, user) {
+  async setAuth(token, user, authMeta = {}) {
+    const current = await this.getState();
     return this.updateState({
-      auth: { token, user },
+      auth: {
+        token: token || current.auth.token,
+        refreshToken: authMeta.refreshToken || current.auth.refreshToken || null,
+        user: user || current.auth.user,
+        deviceId: authMeta.deviceId || current.auth.deviceId || null,
+        studentId: authMeta.studentId || (user && user.id) || current.auth.studentId || null,
+        authTimestamp: authMeta.authTimestamp || current.auth.authTimestamp || new Date().toISOString(),
+      },
       context: { learningState: 'IDLE' },
     });
   },

@@ -26,4 +26,6 @@ public class FocusSessionResponse {
     private String channelName;
     private Integer videoDuration;
     private Integer lastPlaybackPosition;
+    private String watchUrl;
+    private String resumeUrl;
 }

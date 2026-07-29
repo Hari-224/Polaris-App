@@ -1,5 +1,6 @@
 com\polaris\service\LearningPlanService.class
 com\polaris\dto\ExtensionAuthStatusResponse$ExtensionAuthStatusResponseBuilder.class
+com\polaris\repository\LearningResourceRepository.class
 com\polaris\ai\GroqRequest.class
 com\polaris\service\FocusTrackingService.class
 com\polaris\repository\LearningPlanDayRepository.class
@@ -22,10 +23,12 @@ com\polaris\security\SecurityConfig.class
 com\polaris\repository\LearningPlanRepository.class
 com\polaris\security\JwtAuthenticationFilter.class
 com\polaris\entity\LearningSession.class
+com\polaris\entity\LearningResource$LearningResourceBuilder.class
 com\polaris\entity\TrackingActivity$TrackingActivityBuilder.class
 com\polaris\dto\LearningSessionResponse.class
 com\polaris\entity\LearningSession$LearningSessionBuilder.class
 com\polaris\exception\DuplicateResourceException.class
+com\polaris\entity\LearningResource.class
 com\polaris\repository\TrackingActivityRepository.class
 com\polaris\service\impl\ExtensionAuthServiceImpl.class
 com\polaris\service\AuthService.class

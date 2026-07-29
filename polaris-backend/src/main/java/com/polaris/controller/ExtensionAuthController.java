@@ -29,6 +29,10 @@ public class ExtensionAuthController {
             @Valid @RequestBody AuthorizeExtensionRequest request,
             Authentication authentication
     ) {
+        if (authentication == null || authentication.getName() == null) {
+            return ResponseEntity.status(org.springframework.http.HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("User authentication is required to authorize extension"));
+        }
         ExtensionAuthStatusResponse response = extensionAuthService.authorizeExtension(request, authentication.getName());
         return ResponseEntity.ok(ApiResponse.success("Extension authorized successfully", response));
     }

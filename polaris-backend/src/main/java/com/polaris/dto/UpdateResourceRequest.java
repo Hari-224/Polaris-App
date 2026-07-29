@@ -10,10 +10,8 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class UpdateResourceRequest {
 
-    @NotBlank(message = "Resource URL is required")
     private String resourceUrl;
 
-    @NotBlank(message = "Resource title is required")
     private String resourceTitle;
 
     private String resourceType; // e.g. YouTube
